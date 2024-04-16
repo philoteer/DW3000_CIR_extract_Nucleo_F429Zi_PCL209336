@@ -32,7 +32,7 @@ extern UART_HandleTypeDef huart6;
 
 /* Example application name */
 #define APP_NAME "RX DIAG v1.0"
-#define CIR_LEN 128 //Max: 1016; Min: 1
+#define CIR_LEN 1016 //Max: 1016; Min: 1
 #define PRINT_BUF_SIZE 16384
 /* Default communication configuration. We use default non-STS DW mode. */
 static dwt_config_t config = {
