@@ -1,17 +1,15 @@
 # UWB_CIR
 
-#### Extract Real CIR data for classification of LoS/NLoS situation. 
+#### Extract CIR data for classification of LoS/NLoS situation. 
 
 ## Requirements
 
-- #### [CoolTerm, "Version 1.9.005/31/2021"](http://freeware.the-meiers.org/)
-- #### Eclipse IDE
+- #### Some terminal
+- #### sw4stm32 IDE
 
 ## How to use
 
-
-#### 1. run `main.c` file in `Src` folder on elipse IDE
-#### 2. run the "CoolTerm.exe" program
-#### 3. select `Connection > Options > Serial Port` from top toolbars, then select your appropriate Port Num.
-#### 4. Click `Connect` button on Main Screen
-#### 5. if you want to save real_CIR data, select `Connection > Capture to Text/Binary File > start` from top toolbars
+* Prerequisite: Install the PCL298336 daughterboard to the Nucleo, and open "SB122" jumper and short "SB121" jumper of the Nucleo (the initialization fails otherwise).
+#### 1. edit `main.c` and `example_selection.h` to target the correct example project (ex_01a_simple_tx for the Tx node, ex_02c_rx_diagnostics for the Rx node). 
+#### 2. compile and install the project.
+#### 3. Extract the data over the secondary UART (you need to connect both the upper and lower microUSB connectors to the host PC). 
