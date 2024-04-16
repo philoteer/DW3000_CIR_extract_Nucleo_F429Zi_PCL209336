@@ -32,10 +32,11 @@ extern UART_HandleTypeDef huart6;
 
 /* Example application name */
 #define APP_NAME "RX DIAG v1.0"
-
+#define CIR_LEN 128 //Max: 1016; Min: 1
+#define PRINT_BUF_SIZE 16384
 /* Default communication configuration. We use default non-STS DW mode. */
 static dwt_config_t config = {
-    5,               /* Channel number. */
+    9,               /* Channel number. */
     DWT_PLEN_128,    /* Preamble length. Used in TX only. */
     DWT_PAC8,        /* Preamble acquisition chunk size. Used in RX only. */
     9,               /* TX preamble code. Used in TX only. */
@@ -68,8 +69,12 @@ static dwt_rxdiag_t rx_diag;
 /* Hold copy of accumulator data so that it can be examined at a debug breakpoint. See NOTE 2. */
 #define ACCUM_DATA_LEN (3 * 2 * (3 + 3) + 1)
 static uint8_t accum_data[ACCUM_DATA_LEN];
+
 static uint8_t CIR_data[6097];
-static int32_t real_CIR[1016];
+char print_buf[PRINT_BUF_SIZE];
+
+static int32_t CIR_real[CIR_LEN];
+static int32_t CIR_imag[CIR_LEN];
 /**
  * Application entry point.
  */
@@ -94,11 +99,13 @@ int rx_diagnostics(void)
     }
 
     /* Configure DW IC. */
-    if(dwt_configure(&config)) /* if the dwt_configure returns DWT_ERROR either the PLL or RX calibration has failed the host should reset the device */
+    int error = dwt_configure(&config);
+    if(error)
     {
-        test_run_info((unsigned char *)"CONFIG FAILED     ");
+    	 char buf[200];
+    	 snprintf(buf, 200,"CONFIG FAILED: %d \r\n",error);
         while (1)
-        { };
+        { test_run_info(buf); };
     }
 
     /* Activate event counters. */
@@ -166,34 +173,27 @@ int rx_diagnostics(void)
 		   dwt_readaccdata(CIR_data, 6097, 0);
 
 		   int j = 0;
-		   for(int i=1; i<6097; i+=6){
-			     real_CIR[j] = ((CIR_data[i+2]) << 16 | (CIR_data[i+1]) << 8 | (CIR_data[i])); // 비트 이동후 or 연산
-			     if (real_CIR[j] & 0x00800000){ // and연산
-				  real_CIR[j] |= 0xff000000; //뒤의 16진수와 or연산 후 할당
+		   for(int i=1; i<(CIR_LEN*6+1); i+=6){
+			     CIR_real[j] = ((CIR_data[i+2]) << 16 | (CIR_data[i+1]) << 8 | (CIR_data[i]));
+			     CIR_imag[j] = ((CIR_data[i+5]) << 16 | (CIR_data[i+4]) << 8 | (CIR_data[i+3]));
+			     if (CIR_real[j] & 0x00800000){
+				  CIR_real[j] |= 0xff000000;
 			     }
-			    int32_t tempval = real_CIR[j];
 
-				snprintf(real_CIR, sizeof(real_CIR),"%d \r\n", real_CIR[j]);
+			     if (CIR_imag[j] & 0x00800000){
+				  CIR_imag[j] |= 0xff000000;
+			     }
 
-				test_run_info((unsigned char *)real_CIR);
-				//CDC_Transmit_FS(real_CIR[j], sizeof(real_CIR[j]));
-			    HAL_UART_Transmit(&huart6, &real_CIR[j], 1016, 100);
-			    if(j%1016==0){
-			    	printf("=-===================");
-			    }
-				Sleep(0.001);
-
+			    //int32_t tempval = CIR_real[j];
 				j++;
-				}
-		/*   for (int k=1; k<1016; k+=1){
-			   test_run_info((unsigned char *)real_CIR);
-			   snprintf(real_CIR, sizeof(real_CIR),"%d \r\n", real_CIR[k]);
-		   }*/
-
-
-
-
-		   //printf("\r\n");
+			}
+		   	int printf_len = 0;
+		   printf_len += snprintf(print_buf+printf_len, PRINT_BUF_SIZE,"----BEGIN CIR----\r\n");
+		   for(j=0; j<CIR_LEN; j+=1){
+			   printf_len += snprintf(print_buf+printf_len, PRINT_BUF_SIZE,"%d%+dj,", CIR_real[j],CIR_imag[j]);
+		   }
+		   printf_len += snprintf(print_buf+printf_len, PRINT_BUF_SIZE,"\r\n----END CIR----\r\n");
+			test_run_info((unsigned char *)print_buf);
         }
         else
         {
