@@ -30,7 +30,7 @@ int8_t frame_seq_nb;
 
 /* Default communication configuration. We use default non-STS DW mode. */
 static dwt_config_t config = {
-    5,               /* Channel number. */
+    9,               /* Channel number. */
     DWT_PLEN_128,    /* Preamble length. Used in TX only. */
     DWT_PAC8,        /* Preamble acquisition chunk size. Used in RX only. */
     9,               /* TX preamble code. Used in TX only. */
@@ -50,14 +50,14 @@ static dwt_config_t config = {
  *     - byte 1: sequence number, incremented for each new frame.
  *     - byte 2 -> 9: device ID, see NOTE 1 below.
  */
-static uint8_t tx_msg[] = {0xC5, 0, 'D', 'E', 'C', 'A', 'W', 'A', 'V', 'E'};
+static uint8_t tx_msg[] = {0xC5, 0, 'D', 'E', 'C', 'A', '0', '3', '0', '2'};
 /* Index to access to sequence number of the blink frame in the tx_msg array. */
 #define BLINK_FRAME_SN_IDX 1
 
 #define FRAME_LENGTH    (sizeof(tx_msg)+FCS_LEN) //The real length that is going to be transmitted
 
 /* Inter-frame delay period, in milliseconds. */
-#define TX_DELAY_MS 500
+#define TX_DELAY_MS 50
 
 /* Values for the PG_DELAY and TX_POWER registers reflect the bandwidth and power of the spectrum at the current
  * temperature. These values can be calibrated prior to taking reference measurements. See NOTE 2 below. */
@@ -69,6 +69,7 @@ extern dwt_txconfig_t txconfig_options;
 int simple_tx(void)
 {
 
+
     /* Configure SPI rate, DW3000 supports up to 38 MHz */
     port_set_dw_ic_spi_fastrate();
 
@@ -78,30 +79,35 @@ int simple_tx(void)
     Sleep(2); // Time needed for DW3000 to start up (transition from INIT_RC to IDLE_RC, or could wait for SPIRDY event)
 
     while (!dwt_checkidlerc()) /* Need to make sure DW IC is in IDLE_RC before proceeding */
-    { };
+    {
+        test_run_info((unsigned char *)"IDLER! \r\n");
+    };
 
     if (dwt_initialise(DWT_DW_INIT) == DWT_ERROR)
     {
-        test_run_info((unsigned char *)"INIT FAILED     ");
+
         while (1)
-        { };
+        { test_run_info((unsigned char *)"INIT FAILED     "); };
     }
 
     /* Enabling LEDs here for debug so that for each TX the D1 LED will flash on DW3000 red eval-shield boards. */
     dwt_setleds(DWT_LEDS_ENABLE | DWT_LEDS_INIT_BLINK) ;
 
     /* Configure DW IC. See NOTE 5 below. */
-    if(dwt_configure(&config)) /* if the dwt_configure returns DWT_ERROR either the PLL or RX calibration has failed the host should reset the device */
+    int error = dwt_configure(&config);
+    if(error)
     {
-        test_run_info((unsigned char *)"CONFIG FAILED     ");
+    	 char buf[200];
+    	 snprintf(buf, 200,"CONFIG FAILED: %d \r\n",error);
         while (1)
-        { };
+        { test_run_info(buf); };
     }
 
     /* Configure the TX spectrum parameters (power PG delay and PG Count) */
     dwt_configuretxrf(&txconfig_options);
 
     /* Loop forever sending frames periodically. */
+    //test_run_info((unsigned char *)"foo \n");
     while(1)
     {
         /* Write frame data to DW IC and prepare transmission. See NOTE 3 below.*/
@@ -125,7 +131,7 @@ int simple_tx(void)
         /* Clear TX frame sent event. */
         dwt_write32bitreg(SYS_STATUS_ID, SYS_STATUS_TXFRS_BIT_MASK);
 
-        test_run_info((unsigned char *)"TX Frame Sent");
+        test_run_info((unsigned char *)"TX Frame Sent\r\n");
 
         /* Execute a delay between transmissions. */
         Sleep(TX_DELAY_MS);
