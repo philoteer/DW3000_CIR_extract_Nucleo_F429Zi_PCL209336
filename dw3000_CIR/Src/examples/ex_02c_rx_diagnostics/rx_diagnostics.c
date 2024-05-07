@@ -39,6 +39,9 @@ extern UART_HandleTypeDef huart6;
 #define APP_NAME "RX DIAG v1.0"
 #define CIR_LEN 1016 //Max: 1016; Min: 1
 #define PRINT_BUF_SIZE 16384
+#define CIR_DUMP_START 720
+#define CIR_DUMP_LEN 192
+
 /* Default communication configuration. We use default non-STS DW mode. */
 static dwt_config_t config = {
     9,               /* Channel number. */
@@ -80,7 +83,6 @@ char print_buf[PRINT_BUF_SIZE];
 
 static int32_t CIR_real[CIR_LEN];
 static int32_t CIR_imag[CIR_LEN];
-
 
 //src: https://www.cnblogs.com/simpleGao/p/17253002.html
 //modified to 32 bits due to... %llu not being a thing here.
@@ -217,7 +219,7 @@ int rx_diagnostics(void)
 		   int printf_len = 0;
 		   printf_len += snprintf(print_buf+printf_len, PRINT_BUF_SIZE,"t: %u,",get_rx_timestamp_u32());
 		   printf_len += snprintf(print_buf+printf_len, PRINT_BUF_SIZE,"----BEGIN CIR----");
-		   for(j=0; j<CIR_LEN; j+=1){
+		   for(j=CIR_DUMP_START; j<CIR_DUMP_START+CIR_DUMP_LEN; j+=1){
 			   printf_len += snprintf(print_buf+printf_len, PRINT_BUF_SIZE,"%d%+dj,", CIR_real[j],CIR_imag[j]);
 		   }
 		   printf_len += snprintf(print_buf+printf_len, PRINT_BUF_SIZE,"----END CIR----\r\n");
