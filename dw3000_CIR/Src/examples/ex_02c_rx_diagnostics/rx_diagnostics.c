@@ -24,8 +24,13 @@
 #include <port.h>
 #include <example_selection.h>
 #include <shared_defines.h>
+#include <time.h>
+#include <math.h>
 
 #if defined(TEST_RX_DIAG)
+
+
+/* Global Vars */
 
 extern void test_run_info(unsigned char *data);
 extern UART_HandleTypeDef huart6;
@@ -75,6 +80,27 @@ char print_buf[PRINT_BUF_SIZE];
 
 static int32_t CIR_real[CIR_LEN];
 static int32_t CIR_imag[CIR_LEN];
+
+
+//src: https://www.cnblogs.com/simpleGao/p/17253002.html
+//modified to 32 bits due to... %llu not being a thing here.
+//1 tick = 15.65ps * 256 = 4.0064 ns.
+
+static uint32_t get_rx_timestamp_u32(void)
+{
+    uint8_t ts_tab[5];
+    uint32_t ts = 0;
+    int i;
+    dwt_readrxtimestamp(ts_tab);
+
+    for (i = 4; i >= 1; i--)
+    {
+        ts <<= 8;
+        ts |= ts_tab[i];
+    }
+    return ts;
+}
+
 /**
  * Application entry point.
  */
@@ -187,12 +213,14 @@ int rx_diagnostics(void)
 			    //int32_t tempval = CIR_real[j];
 				j++;
 			}
-		   	int printf_len = 0;
-		   printf_len += snprintf(print_buf+printf_len, PRINT_BUF_SIZE,"----BEGIN CIR----\r\n");
+
+		   int printf_len = 0;
+		   printf_len += snprintf(print_buf+printf_len, PRINT_BUF_SIZE,"t: %u,",get_rx_timestamp_u32());
+		   printf_len += snprintf(print_buf+printf_len, PRINT_BUF_SIZE,"----BEGIN CIR----");
 		   for(j=0; j<CIR_LEN; j+=1){
 			   printf_len += snprintf(print_buf+printf_len, PRINT_BUF_SIZE,"%d%+dj,", CIR_real[j],CIR_imag[j]);
 		   }
-		   printf_len += snprintf(print_buf+printf_len, PRINT_BUF_SIZE,"\r\n----END CIR----\r\n");
+		   printf_len += snprintf(print_buf+printf_len, PRINT_BUF_SIZE,"----END CIR----\r\n");
 			test_run_info((unsigned char *)print_buf);
         }
         else
